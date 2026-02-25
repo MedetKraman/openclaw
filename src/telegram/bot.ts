@@ -82,6 +82,12 @@ export function getTelegramSequentialKey(ctx: {
   if (reaction?.chat?.id) {
     return `telegram:${reaction.chat.id}`;
   }
+  // Handle callback_query updates on a separate lane to avoid deadlocks
+  // when plugins use async approval flows in before_tool_call hooks.
+  const callbackQuery = ctx.update?.callback_query;
+  if (callbackQuery?.message?.chat?.id) {
+    return `telegram:${callbackQuery.message.chat.id}:callback`;
+  }
   const msg =
     ctx.message ??
     ctx.channelPost ??

@@ -60,6 +60,7 @@ import {
 } from "./model-buttons.js";
 import { buildInlineKeyboard } from "./send.js";
 import { wasSentByBot } from "./sent-message-cache.js";
+import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 
 export const registerTelegramHandlers = ({
   cfg,
@@ -995,6 +996,32 @@ export const registerTelegramHandlers = ({
           return;
         }
 
+        return;
+      }
+
+      // Plugin approval callbacks — fire message_received hook directly without
+      // starting a full agent run (avoids wasted LLM API calls and unwanted responses).
+      if (/^(ta:[a-z0-9]+:[ytan]|perm:(revoke|close)(:.+)?)$/.test(data)) {
+        const hookRunner = getGlobalHookRunner();
+        if (hookRunner?.hasHooks("message_received")) {
+          const threadSuffix = resolvedThreadId ? `:topic:${resolvedThreadId}` : "";
+          hookRunner.runMessageReceived(
+            {
+              from: `telegram:${chatId}${threadSuffix}`,
+              content: data,
+              timestamp: Date.now(),
+              metadata: {
+                to: `telegram:${chatId}${threadSuffix}`,
+                provider: "telegram",
+                surface: "telegram",
+                threadId: resolvedThreadId ? String(resolvedThreadId) : undefined,
+                senderId,
+                senderUsername,
+              },
+            },
+            { channelId: "telegram", accountId },
+          );
+        }
         return;
       }
 
