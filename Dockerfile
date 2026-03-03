@@ -37,7 +37,9 @@ COPY --chown=node:node scripts ./scripts
 USER node
 # Reduce OOM risk on low-memory hosts during dependency installation.
 # Docker builds on small VMs may otherwise fail with "Killed" (exit 137).
-RUN NODE_OPTIONS=--max-old-space-size=2048 pnpm install --frozen-lockfile
+# Cache mount persists the pnpm package store across rebuilds (even when lock file changes).
+RUN --mount=type=cache,id=openclaw-pnpm-store,uid=1000,gid=1000,sharing=locked,target=/home/node/.local/share/pnpm/store \
+    NODE_OPTIONS=--max-old-space-size=2048 pnpm install --frozen-lockfile
 
 # Optionally install Chromium and Xvfb for browser automation.
 # Build with: docker build --build-arg OPENCLAW_INSTALL_BROWSER=1 ...
