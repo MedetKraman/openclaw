@@ -4,15 +4,15 @@
 
 ## Base Version
 
-OpenClaw commit: `d76b224` (v2026.3.1 — DM topics, adaptive thinking, healthz endpoints)
+OpenClaw commit: `v2026.3.2` (Feishu fixes, Discord voice/audio, CI improvements)
 
-Previously: `9231d7d` (v2026.2.21)
+Previously: `d76b224` (v2026.3.1)
 
 ## Patches
 
 ### 1. grammY sequentialize deadlock fix
 
-**Файл**: `src/telegram/bot.ts`
+**Файл**: `src/telegram/sequential-key.ts` (v2026.3.2-ден бастап; бұрын `bot.ts`)
 **Мәселе**: `callback_query` handlers deadlock — `sequentialize` middleware бір lane-да кезекте тұрады, callback пен негізгі хабар бір-бірін блоктайды.
 **Шешім**: Callback updates үшін бөлек `:callback` lane key — `update.callback_query` check қосу.
 **Өзгеріс**: sequentialize key function-да:
@@ -69,17 +69,31 @@ if (/^(ta:[a-z0-9]+:[ytan]|perm:(revoke|close)(:.+)?)$/.test(data)) {
 **Build команда**: `build-local.sh` скриптін қолдану (`DOCKER_BUILDKIT=1 --cache-from` қосулы).
 **Қашан қосылды**: 2026-03-03
 
+### 6. Discord approval buttons (ButtonSpec.id + agent bypass)
+
+**Файлдар**: `src/discord/components.ts`, `src/discord/monitor/agent-components.ts`
+**Мәселе**: Discord-та plugin approval buttons мүмкін емес — `DiscordComponentButtonSpec` custom componentId қабылдамайды; button click-тер agent run-ға кетеді.
+**Шешім** (2 бөлік):
+
+1. `components.ts` — `DiscordComponentButtonSpec.id?: string` қосылды. Buttons `id` беріле алады, `createButtonComponent` арқылы customId ретінде қолданылады.
+2. `agent-components.ts` — `handleDiscordComponentEvent` ішінде `ta:*` / `perm:*` pattern detect → `getGlobalHookRunner().runMessageReceived()` тікелей шақыру, `dispatchDiscordComponentEvent` (agent run) skip.
+
+**Plugin**: `activity-indicators` v1.5.0 — Discord approval `messageActions.handleAction` + components blocks арқылы 4 button жібереді (`id: "ta:ID:y/t/a/n"`). Telegram-мен бірдей `message_received` hook арқылы resolved.
+**Қашан қосылды**: 2026-03-03
+
 ## Docker Runtime Patches
 
 Source patches are compiled into `openclaw-medet:local` via Docker build.
 No runtime patching needed — all patches live in the source code.
 
 **Build command (with caching):**
+
 ```bash
 wsl -e bash /mnt/d/source/MedetCTO/08-integrations/openclaw/build-local.sh
 ```
 
 **Verify patches are compiled in:**
+
 ```bash
 wsl -e docker exec openclaw-repo-openclaw-gateway-1 sh -c 'grep -c "ytan" /app/dist/reply-*.js'
 # Expected: 1

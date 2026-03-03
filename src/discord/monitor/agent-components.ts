@@ -34,6 +34,7 @@ import type { DiscordAccountConfig } from "../../config/types.discord.js";
 import { logVerbose } from "../../globals.js";
 import { enqueueSystemEvent } from "../../infra/system-events.js";
 import { logDebug, logError } from "../../logger.js";
+import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
 import { buildPairingReply } from "../../pairing/pairing-messages.js";
 import { upsertChannelPairingRequest } from "../../pairing/pairing-store.js";
 import { resolveAgentRoute } from "../../routing/resolve-route.js";
@@ -1145,6 +1146,30 @@ async function handleDiscordComponentEvent(params: {
     await params.interaction.reply({ content: "✓", ...replyOpts });
   } catch (err) {
     logError(`${params.label}: failed to acknowledge interaction: ${String(err)}`);
+  }
+
+  // Plugin approval callback bypass: route ta:* and perm:* directly to plugin hooks
+  // instead of dispatching to the agent (avoids expensive LLM calls for approval buttons).
+  // Mirrors the Telegram bot-handlers.ts patch for callback_query.
+  if (consumed.id && /^(ta:[a-z0-9]+:[ytan]|perm:(revoke|close)(:.+)?)$/.test(consumed.id)) {
+    const hookRunner = getGlobalHookRunner();
+    if (hookRunner?.hasHooks("message_received")) {
+      const accountId = consumed.accountId ?? params.ctx.accountId;
+      hookRunner.runMessageReceived(
+        {
+          from: user.id,
+          content: consumed.id,
+          timestamp: Date.now(),
+          metadata: {
+            to: `channel:${channelId}`,
+            provider: "discord",
+            accountId,
+          },
+        },
+        { channelId: "discord", accountId },
+      );
+    }
+    return;
   }
 
   await dispatchDiscordComponentEvent({

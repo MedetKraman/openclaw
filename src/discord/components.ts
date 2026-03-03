@@ -46,6 +46,8 @@ export type DiscordComponentButtonSpec = {
   label: string;
   style?: DiscordComponentButtonStyle;
   url?: string;
+  /** Custom componentId for plugin approval callbacks (e.g., "ta:ID:y"). */
+  id?: string;
   emoji?: {
     name: string;
     id?: string;
@@ -375,6 +377,7 @@ function parseButtonSpec(raw: unknown, label: string): DiscordComponentButtonSpe
                 : undefined,
           }
         : undefined,
+    id: readOptionalString(obj.id),
     disabled: typeof obj.disabled === "boolean" ? obj.disabled : undefined,
     allowedUsers: readOptionalStringArray(obj.allowedUsers, `${label}.allowedUsers`),
   };
@@ -976,7 +979,7 @@ export function buildDiscordComponentMessage(params: {
       if (block.accessory?.type === "thumbnail") {
         accessory = new Thumbnail(block.accessory.url);
       } else if (block.accessory?.type === "button") {
-        const { component, entry } = createButtonComponent({ spec: block.accessory.button });
+        const { component, entry } = createButtonComponent({ spec: block.accessory.button, componentId: block.accessory.button.id });
         accessory = component;
         if (entry) {
           addEntry(entry);
@@ -1012,7 +1015,7 @@ export function buildDiscordComponentMessage(params: {
           throw new Error("Action rows support up to 5 buttons");
         }
         for (const button of block.buttons) {
-          const { component, entry } = createButtonComponent({ spec: button });
+          const { component, entry } = createButtonComponent({ spec: button, componentId: button.id });
           rowComponents.push(component);
           if (entry) {
             addEntry(entry);
