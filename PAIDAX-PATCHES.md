@@ -4,7 +4,9 @@
 
 ## Base Version
 
-OpenClaw commit: `9231d7d` (chore: bump version to 2026.2.21)
+OpenClaw commit: `d76b224` (v2026.3.1 — DM topics, adaptive thinking, healthz endpoints)
+
+Previously: `9231d7d` (v2026.2.21)
 
 ## Patches
 
@@ -33,7 +35,7 @@ return chatKey;
 **Жолдар**: ~1002-1026 (catch-all `processMessage` алдында)
 
 ```typescript
-if (/^ta:[a-z0-9]+:[yan]$/.test(data)) {
+if (/^(ta:[a-z0-9]+:[ytan]|perm:(revoke|close)(:.+)?)$/.test(data)) {
   const hookRunner = getGlobalHookRunner();
   if (hookRunner?.hasHooks("message_received")) {
     hookRunner.runMessageReceived(
@@ -52,8 +54,20 @@ if (/^ta:[a-z0-9]+:[yan]$/.test(data)) {
 **Шешім**: Telegram секциясына `"capabilities": { "inlineButtons": "all" }` қосу.
 **Орны**: Config файл, source code емес.
 
+### 4. python3-pip in Dockerfile
+
+**Файл**: `Dockerfile`
+**Мәселе**: `node:22-bookworm` base image-де pip жоқ — `install-diarize.sh` жұмыс істемейді.
+**Шешім**: `apt-get install -y python3-pip` Dockerfile `ARG OPENCLAW_DOCKER_APT_PACKAGES` блогінде.
+**Қашан қосылды**: v2026.3.1 merge (2026-03-03)
+
 ## Docker Runtime Patches
 
-Docker container ішіндегі compiled bundle (`/app/dist/reply-6VY-Jwh5.js`) runtime-да Python script арқылы патчталады. Source repo-дағы patches Docker image rebuild кезінде автоматты қолданылады.
+Source patches are compiled into `openclaw-medet:local` via Docker build.
+No runtime patching needed — all patches live in the source code.
 
-**Маңызды**: Compiled bundle файл атауы build-ке байланысты өзгеруі мүмкін — `index.js` ішіндегі import-тан тексеру: `docker exec CONTAINER sh -c 'head -5 //app/dist/index.js'`
+**Verify patches are compiled in:**
+```bash
+wsl -e docker exec openclaw-repo-openclaw-gateway-1 sh -c 'grep -c "ytan" /app/dist/reply-*.js'
+# Expected: 1
+```
